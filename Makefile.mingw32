@@ -1,0 +1,13 @@
+CC=i586-mingw32msvc-gcc
+SRCS = memname.c  play.c  scan.c  statename.c  svf.c  tap.c  xsvf.c
+
+INCDIR=ftd2xx/windows
+CFLAGS=-lm -DFORWIN
+
+all:xsvfplay.exe
+
+xsvfplay.exe: $(SRCS) xsvfplay_ftd2xx.c
+	$(CC) xsvfplay_ftd2xx.c $(SRCS) -I. -I$(INCDIR) -o xsvfplay.exe -L$(INCDIR) -lftd2xx $(CFLAGS)
+
+clean:
+	-rm xsvfplay.exe
