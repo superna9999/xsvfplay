@@ -63,6 +63,7 @@
 
 /* FTDI Specifics */
 char jtag_port_name[256] = "FTDI SPARTAN6 B";
+unsigned jtag_port_pos = -1;
 char control_port_name[256] = "FTDI SPARTAN6 D";
 int control_mask = 0x3;
 int control_value = 0x1;    // Flash access disabled, Spartan JTAG Enabled
@@ -624,6 +625,7 @@ void enableJTAG()
 static int h_setup(struct libxsvf_host *h)
 {
 	DWORD w;
+    FT_STATUS ret;
 
 	struct udata_s *u = h->user_data;
 	u->buffer_size = BUFFER_SIZE;
@@ -636,8 +638,17 @@ static int h_setup(struct libxsvf_host *h)
         enableJTAG();
     }
 
-    if(FT_OpenEx(jtag_port_name, FT_OPEN_BY_DESCRIPTION, &u->ftdic) != FT_OK ||
-       FT_ResetDevice(u->ftdic) != FT_OK ||
+    if (jtag_port_pos >= 0)
+        ret = FT_Open(jtag_port_pos, &u->ftdic);
+    else
+        ret = FT_OpenEx(jtag_port_name, FT_OPEN_BY_DESCRIPTION, &u->ftdic);
+        
+    if (ret != FT_OK) {
+        fprintf(stderr, "Failed to Open FTDI JTAG Interface(%s or %d) ret %d\n", jtag_port_name, jtag_port_pos, ret);
+        return -1;
+    }
+
+    if(FT_ResetDevice(u->ftdic) != FT_OK ||
        FT_SetBitMode(u->ftdic, 0x00, 0) != FT_OK ||
        FT_SetLatencyTimer(u->ftdic, 2) != FT_OK ||
        FT_SetTimeouts(u->ftdic, 5000, 5000) != FT_OK ||
@@ -876,6 +887,9 @@ static void help()
 	fprintf(stderr, "   -J jtagport\n");
 	fprintf(stderr, "          JTAG Port Name, by default '%s'\n", jtag_port_name);
 	fprintf(stderr, "\n");
+	fprintf(stderr, "   -J jtagportnum\n");
+	fprintf(stderr, "          JTAG Port position in -l list, overrides '-J' parameter\n");
+	fprintf(stderr, "\n");
 	fprintf(stderr, "   -C ctrlport\n");
 	fprintf(stderr, "          JTAG Control Port Name, by default '%s'\n", control_port_name);
 	fprintf(stderr, "\n");
@@ -924,7 +938,7 @@ int main(int argc, char **argv)
     time_t start = time(NULL);
 
 	progname = argc >= 1 ? argv[0] : "xsvftool-play";
-	while ((opt = getopt(argc, argv, "npvlP:U:J:C:M:V:d:LBSFf:x:s:c")) != -1)
+	while ((opt = getopt(argc, argv, "npvlP:U:J:j:C:M:V:d:LBSFf:x:s:c")) != -1)
 	{
 		switch (opt)
 		{
@@ -950,6 +964,9 @@ int main(int argc, char **argv)
 			break;
         case 'J':
             strncpy(jtag_port_name, optarg, 255);
+            break;
+        case 'j':
+            jtag_port_pos = atoi(optarg);
             break;
         case 'C':
             strncpy(control_port_name, optarg, 255);
